@@ -1,0 +1,23 @@
+CREATE TABLE FavoriteQuote (
+    id INTEGER NOT NULL PRIMARY KEY,
+    body TEXT NOT NULL,
+    author TEXT NOT NULL,
+    favoritesCount INTEGER NOT NULL DEFAULT 0,
+    savedAtEpochMs INTEGER NOT NULL
+);
+
+selectAll:
+SELECT * FROM FavoriteQuote ORDER BY savedAtEpochMs DESC;
+
+selectById:
+SELECT * FROM FavoriteQuote WHERE id = :id;
+
+upsert:
+INSERT OR REPLACE INTO FavoriteQuote(id, body, author, favoritesCount, savedAtEpochMs)
+VALUES (?, ?, ?, ?, ?);
+
+deleteById:
+DELETE FROM FavoriteQuote WHERE id = :id;
+
+countById:
+SELECT COUNT(*) FROM FavoriteQuote WHERE id = :id;

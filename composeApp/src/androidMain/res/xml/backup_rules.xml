@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Legacy backup rules (API < 31). Same exclusions as data_extraction_rules.xml. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="dailyquotes.xml" />
+    <exclude domain="database" path="dailyquotes.db" />
+</full-backup-content>

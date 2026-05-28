@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirrors RenungColors.Paper so the platform-drawn window matches before Compose renders -->
+    <color name="paper">#FFF6F1E7</color>
+</resources>

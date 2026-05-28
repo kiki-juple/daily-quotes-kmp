@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Targeted backup rules: exclude session token and database from cloud + device transfer.
+     Quotes can be re-fetched; the session token should be re-acquired via login. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="dailyquotes.xml" />
+        <exclude domain="database" path="dailyquotes.db" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="dailyquotes.xml" />
+        <exclude domain="database" path="dailyquotes.db" />
+    </device-transfer>
+</data-extraction-rules>
