@@ -31,12 +31,12 @@ iOS: open `iosApp/iosApp.xcodeproj` in Xcode and use the iosApp scheme. Only `io
 
 Four Gradle modules (see `settings.gradle.kts`):
 
-| Module | Role |
-|---|---|
-| `:composeApp` | Compose UI, ViewModels, navigation, DI root (`initKoin`) |
-| `:shared:network` | Ktor HTTP client, `FavQsApi`, DTOs, `SessionStore` (multiplatform-settings) |
-| `:shared:local` | SQLDelight database (`DailyQuotesDatabase`), `SqlDriverProvider` expect/actual |
-| `:shared:data` | Domain models (`Quote`, `User`), repositories, Koin `dataModule` |
+| Module            | Role                                                                           |
+|-------------------|--------------------------------------------------------------------------------|
+| `:composeApp`     | Compose UI, ViewModels, navigation, DI root (`initKoin`)                       |
+| `:shared:network` | Ktor HTTP client, `FavQsApi`, DTOs, `SessionStore` (multiplatform-settings)    |
+| `:shared:local`   | SQLDelight database (`DailyQuotesDatabase`), `SqlDriverProvider` expect/actual |
+| `:shared:data`    | Domain models (`Quote`, `User`), repositories, Koin `dataModule`               |
 
 Dependency graph: `:composeApp` → `:shared:data` → `:shared:network` + `:shared:local`.
 
