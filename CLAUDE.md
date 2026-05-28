@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Kotlin Multiplatform + Compose Multiplatform app targeting Android and iOS. Application id / namespace: `com.disheveled.dailyquotes`. Currently a fresh KMP wizard scaffold (Greeting/Platform demo) — no domain code yet.
+Kotlin Multiplatform + Compose Multiplatform app ("Renung") targeting Android and iOS. Application id / namespace: `com.disheveled.dailyquotes`. Backed by the [FavQs API](https://favqs.com/api) for daily quotes and user authentication.
 
-Toolchain (from `gradle/libs.versions.toml`): Kotlin 2.3.20, Compose Multiplatform 1.10.3, Material3 1.10.0-alpha05, AGP 8.13.2, JVM target 11. Android `minSdk` 29, `compileSdk` / `targetSdk` 36.
+Toolchain (`gradle/libs.versions.toml`): Kotlin 2.3.21, Compose Multiplatform 1.11.0, Material3 1.11.0-alpha07, AGP 8.13.2, JVM target 11. Android `minSdk` 29, `compileSdk` / `targetSdk` 37.
 
 ## Commands
 
@@ -17,30 +17,68 @@ All Gradle commands run from the repo root via the wrapper.
 ./gradlew :composeApp:installDebug           # install on connected Android device/emulator
 ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64   # build iOS sim framework
 
-./gradlew :composeApp:testDebugUnitTest      # Android JVM unit tests (commonTest + androidUnitTest)
-./gradlew :composeApp:iosSimulatorArm64Test  # iOS sim tests (commonTest + iosTest)
-./gradlew :composeApp:allTests               # all KMP test targets
+# Tests live in :shared:data:commonTest (unit tests for repositories)
+./gradlew :shared:data:testDebugUnitTest     # run data-layer tests on JVM
+./gradlew :composeApp:testDebugUnitTest      # run composeApp tests on JVM
 
 # single test
-./gradlew :composeApp:testDebugUnitTest --tests "com.disheveled.dailyquotes.ComposeAppCommonTest.example"
+./gradlew :shared:data:testDebugUnitTest --tests "com.disheveled.dailyquotes.data.repository.AuthRepositoryTest.loginSuccessPopulatesUserAndPersistsSession"
 ```
 
-iOS app build/run: open `iosApp/iosApp.xcodeproj` in Xcode and use the iosApp scheme. Xcode invokes Gradle to produce the `ComposeApp` framework as a build phase; do not commit the generated `.framework` in `composeApp/build/`. Only `iosArm64` and `iosSimulatorArm64` targets are configured — there is no `iosX64` (Intel sim) target.
+iOS: open `iosApp/iosApp.xcodeproj` in Xcode and use the iosApp scheme. Only `iosArm64` and `iosSimulatorArm64` targets are configured — there is no `iosX64` (Intel sim) target.
+
+## Module Structure
+
+Four Gradle modules (see `settings.gradle.kts`):
+
+| Module | Role |
+|---|---|
+| `:composeApp` | Compose UI, ViewModels, navigation, DI root (`initKoin`) |
+| `:shared:network` | Ktor HTTP client, `FavQsApi`, DTOs, `SessionStore` (multiplatform-settings) |
+| `:shared:local` | SQLDelight database (`DailyQuotesDatabase`), `SqlDriverProvider` expect/actual |
+| `:shared:data` | Domain models (`Quote`, `User`), repositories, Koin `dataModule` |
+
+Dependency graph: `:composeApp` → `:shared:data` → `:shared:network` + `:shared:local`.
+
+Add new libraries to `gradle/libs.versions.toml` and reference them as `libs.*` in build files. `settings.gradle.kts` enables `TYPESAFE_PROJECT_ACCESSORS` so modules reference each other as `projects.shared.network`.
 
 ## Architecture
 
-Single Gradle module `:composeApp` (see `settings.gradle.kts`) with KMP source sets:
+### Layered within `:composeApp`
+- `App.kt` — root `@Composable`, wraps everything in `DailyQuotesTheme` and delegates to `AppNavHost`.
+- `ui/nav/` — navigation with Navigation 3 (`NavBackStack`, `NavKey`, `entryProvider`). `AppNavHost` reads `AuthRepository.currentUser` flow to choose between `AuthNavHost` (Login → Register) and `MainNavHost` (Home / Favorites with bottom `NavBar`). Destinations are `sealed interface` `NavKey` subtypes in `Screen.kt`.
+- `ui/<feature>/` — each screen has a paired `ViewModel` that consumes repositories and exposes `StateFlow`.
+- `ui/components/` — shared Renung design-system components.
+- `di/AppModule.kt` — calls `initKoin { }`, registers ViewModels as `viewModelOf`, and pulls in `sharedDataModules()` from `:shared:data`.
 
-- `commonMain` — shared Compose UI and logic. Entry point is `@Composable fun App()` in `App.kt`. Compose resources live under `commonMain/composeResources/` and are accessed via the generated `dailyquotes.composeapp.generated.resources.Res` object.
-- `androidMain` — `MainActivity` calls `setContent { App() }`. Android-only deps (`activity-compose`, `ui-tooling-preview`) declared here.
-- `iosMain` — `MainViewController()` wraps `App()` in a `ComposeUIViewController`. Builds a static framework named `ComposeApp` consumed by the Swift app.
-- `commonTest` — uses `kotlin.test`.
+### Android entry point
+`DailyQuotesApp : Application` calls `initAndroidPlatform(this)` then `initKoin { androidContext(...) }`. `MainActivity` calls `setContent { App() }`.
 
-Platform abstraction uses Kotlin `expect`/`actual`:
+### iOS entry point
+`MainViewController.kt` (iosMain) exposes `MainViewController()` — called from Swift as `MainViewControllerKt.MainViewController()`.
 
-- `Platform.kt` (commonMain) declares `interface Platform` and `expect fun getPlatform()`.
-- `Platform.android.kt` and `Platform.ios.kt` provide `actual` implementations. Add new platform-specific APIs by following this pattern — declare `expect` in commonMain, then implement in both `androidMain` and `iosMain`.
+### Data layer (`:shared:data`)
+- `AuthRepository` — manages login/register via `FavQsApi`, persists the session token + login in `SessionStore`, and exposes `currentUser: StateFlow<User?>` used by navigation to gate the auth wall.
+- `QuoteRepository` — fetches quote-of-the-day from the API, caches it in SQLDelight (`QuoteOfTheDay` table keyed by date), and evicts stale entries.
+- `FavoritesRepository` — CRUD for locally-stored favorite quotes (`FavoriteQuote` table).
+- `resultOf { }` helper wraps suspend calls in `Result<T>`, rethrowing `CancellationException`.
 
-iOS host app (`iosApp/`) is a thin SwiftUI wrapper: `iOSApp.swift` → `ContentView` → `ComposeView: UIViewControllerRepresentable` calls `MainViewControllerKt.MainViewController()` from the generated `ComposeApp` framework. Add Kotlin-side iOS entry points by exposing top-level functions in `iosMain` — they're reachable from Swift as `<FileName>Kt.<func>()`.
+### Network (`:shared:network`)
+- `FavQsApi` — typed Ktor client wrapper for `GET /qotd`, `POST /users`, `POST /session`, `GET /users/{login}`.
+- `SessionStore` — reads/writes user token and login from `multiplatform-settings` (`MapSettings` in tests, platform-native in production).
+- Platform-specific HTTP engines: OkHttp (Android) / Darwin (iOS) via `HttpClientEngineProvider` expect/actual.
+- API key injected at build time into `GeneratedApiKey.kt` via a Gradle task in `:shared:network`.
 
-Dependencies are managed via the `gradle/libs.versions.toml` version catalog and referenced as `libs.*` in `composeApp/build.gradle.kts`. Add new libraries to the catalog rather than hardcoding coordinates. `settings.gradle.kts` enables `TYPESAFE_PROJECT_ACCESSORS`.
+### Local storage (`:shared:local`)
+- SQLDelight schema in `shared/local/src/commonMain/sqldelight/`. Database name: `DailyQuotesDatabase`.
+- `SqlDriverProvider` expect/actual: `AndroidSqliteDriver` on Android, `NativeSqliteDriver` on iOS.
+
+## Design System (Renung)
+
+- `RenungColors` — semantic palette: Paper/Ink/Clay/Sage/Mist tokens (no raw `Color` values in UI code).
+- `ui/theme/` — `DailyQuotesTheme`, `RenungColors`, `RenungSpacing`, `RenungShapes`, `RenungTypography`.
+- Compose resources (icons, strings) live under `commonMain/composeResources/` and are accessed via the generated `Res` object.
+
+## Testing
+
+Tests for repositories live in `:shared:data:commonTest`. They use `ktor-client-mock` (`MockEngine`) and `multiplatform-settings-test` (`MapSettings`) — no real database or network. No SQLDelight in the test source set; repositories under test receive a real `FavQsApi` wired to a `MockEngine`.
