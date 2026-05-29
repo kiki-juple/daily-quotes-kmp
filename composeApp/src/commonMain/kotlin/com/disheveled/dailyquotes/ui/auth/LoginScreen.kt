@@ -31,7 +31,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.disheveled.dailyquotes.ui.components.FilledButton
 import com.disheveled.dailyquotes.ui.components.GroupedFormGroup
 import com.disheveled.dailyquotes.ui.components.GroupedFormRow
-import com.disheveled.dailyquotes.ui.components.LinkText
 import com.disheveled.dailyquotes.ui.login.LoginViewModel
 import com.disheveled.dailyquotes.ui.theme.RenungColors
 import com.disheveled.dailyquotes.ui.theme.RenungTheme
@@ -112,26 +111,17 @@ fun LoginScreen(
                 )
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box {
-                    FilledButton(
-                        text = if (submitting) "" else "Masuk",
-                        onClick = { viewModel.submit() },
-                        enabled = !submitting,
-                    )
-                    if (submitting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp).align(Alignment.Center),
-                            color = RenungColors.Cream,
-                            strokeWidth = 2.dp,
-                        )
-                    }
-                }
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    LinkText(
-                        text = "Lupa kata sandi?",
-                        onClick = {},
-                        color = RenungColors.Ink3,
+            Box {
+                FilledButton(
+                    text = if (submitting) "" else "Masuk",
+                    onClick = { viewModel.submit() },
+                    enabled = !submitting,
+                )
+                if (submitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp).align(Alignment.Center),
+                        color = RenungColors.Cream,
+                        strokeWidth = 2.dp,
                     )
                 }
             }

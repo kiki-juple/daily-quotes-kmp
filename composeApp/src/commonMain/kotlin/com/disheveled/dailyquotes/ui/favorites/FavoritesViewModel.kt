@@ -32,7 +32,11 @@ class FavoritesViewModel(
 
     fun remove(quoteId: Long) {
         viewModelScope.launch {
-            favoritesRepository.remove(quoteId)
+            try {
+                favoritesRepository.remove(quoteId)
+            } catch (_: Exception) {
+                // observeFavorites flow keeps list in sync; no UI action needed
+            }
         }
     }
 }

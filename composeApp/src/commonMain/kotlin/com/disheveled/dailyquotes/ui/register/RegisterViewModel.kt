@@ -13,6 +13,7 @@ data class RegisterUiState(
     val login: String = "",
     val email: String = "",
     val password: String = "",
+    val confirmPassword: String = "",
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null,
 )
@@ -28,18 +29,25 @@ class RegisterViewModel(
     fun onEmailChange(value: String) = _state.update { it.copy(email = value, errorMessage = null) }
     fun onPasswordChange(value: String) =
         _state.update { it.copy(password = value, errorMessage = null) }
+    fun onConfirmPasswordChange(value: String) =
+        _state.update { it.copy(confirmPassword = value, errorMessage = null) }
 
     fun submit() {
         val s = _state.value
         val login = s.login.trim()
         val email = s.email.trim()
         val password = s.password
-        if (login.isEmpty() || email.isEmpty() || password.isEmpty()) {
+        val confirmPassword = s.confirmPassword
+        if (login.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
             _state.update { it.copy(errorMessage = "Semua kolom wajib diisi") }
             return
         }
-        if (password.length < 6) {
-            _state.update { it.copy(errorMessage = "Sandi minimal 6 karakter") }
+        if (password.length < 8) {
+            _state.update { it.copy(errorMessage = "Sandi minimal 8 karakter") }
+            return
+        }
+        if (password != confirmPassword) {
+            _state.update { it.copy(errorMessage = "Sandi tidak cocok") }
             return
         }
         _state.update { it.copy(isSubmitting = true, errorMessage = null) }

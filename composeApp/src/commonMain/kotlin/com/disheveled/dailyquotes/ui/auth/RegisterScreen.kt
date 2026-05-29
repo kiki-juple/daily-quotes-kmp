@@ -15,10 +15,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.SpanStyle
@@ -44,7 +41,6 @@ fun RegisterScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val submitting = state.isSubmitting
-    var confirmPassword by rememberSaveable { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -104,8 +100,8 @@ fun RegisterScreen(
                 )
                 GroupedFormRow(
                     label = "Ulangi",
-                    value = confirmPassword,
-                    onValueChange = { confirmPassword = it },
+                    value = state.confirmPassword,
+                    onValueChange = viewModel::onConfirmPasswordChange,
                     placeholder = "••••••••",
                     keyboardType = KeyboardType.Password,
                     isPassword = true,

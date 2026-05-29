@@ -7,9 +7,14 @@ import com.disheveled.dailyquotes.data.repository.FavoritesRepository
 import com.disheveled.dailyquotes.data.repository.QuoteRepository
 import com.disheveled.dailyquotes.domain.model.Quote
 import com.disheveled.dailyquotes.domain.model.User
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -21,6 +26,7 @@ data class HomeUiState(
     val errorMessage: String? = null,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModel(
     private val quoteRepository: QuoteRepository,
     private val favoritesRepository: FavoritesRepository,
@@ -30,13 +36,26 @@ class HomeViewModel(
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
+    private val _quoteId = MutableStateFlow<Long?>(null)
+
     init {
+        // Calls refresh() on first load AND whenever the user re-logs in.
+        // This also handles the case where the ViewModel is retained across logout/login:
+        // without this, _quoteId would stay null after logout and isFavorite would be stuck false.
         viewModelScope.launch {
-            authRepository.currentUser.collect { user ->
-                _state.update { it.copy(user = user) }
-            }
+            authRepository.currentUser
+                .collect { user ->
+                    _state.update { it.copy(user = user) }
+                    if (user != null) refresh()
+                }
         }
-        refresh()
+
+        _quoteId
+            .flatMapLatest { id ->
+                if (id != null) favoritesRepository.observeIsFavorite(id) else flowOf(false)
+            }
+            .onEach { isFav -> _state.update { it.copy(isFavorite = isFav) } }
+            .launchIn(viewModelScope)
     }
 
     fun refresh() {
@@ -46,7 +65,7 @@ class HomeViewModel(
             result.fold(
                 onSuccess = { quote ->
                     _state.update { it.copy(isLoading = false, quote = quote) }
-                    observeFavorite(quote.id)
+                    _quoteId.value = quote.id
                 },
                 onFailure = { e ->
                     _state.update {
@@ -60,25 +79,18 @@ class HomeViewModel(
         }
     }
 
-    private var observeJob: kotlinx.coroutines.Job? = null
-
-    private fun observeFavorite(quoteId: Long) {
-        observeJob?.cancel()
-        observeJob = viewModelScope.launch {
-            favoritesRepository.observeIsFavorite(quoteId).collect { isFav ->
-                _state.update { it.copy(isFavorite = isFav) }
-            }
-        }
-    }
-
     fun toggleFavorite() {
         val quote = _state.value.quote ?: return
         val currentlyFavorite = _state.value.isFavorite
         viewModelScope.launch {
-            if (currentlyFavorite) {
-                favoritesRepository.remove(quote.id)
-            } else {
-                favoritesRepository.add(quote)
+            try {
+                if (currentlyFavorite) {
+                    favoritesRepository.remove(quote.id)
+                } else {
+                    favoritesRepository.add(quote)
+                }
+            } catch (_: Exception) {
+                // isFavorite reverts automatically via observeIsFavorite flow
             }
         }
     }
