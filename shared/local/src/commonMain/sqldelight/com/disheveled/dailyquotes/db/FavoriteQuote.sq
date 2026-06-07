@@ -19,5 +19,8 @@ VALUES (?, ?, ?, ?, ?);
 deleteById:
 DELETE FROM FavoriteQuote WHERE id = :id;
 
+deleteAll:
+DELETE FROM FavoriteQuote;
+
 countById:
 SELECT COUNT(*) FROM FavoriteQuote WHERE id = :id;

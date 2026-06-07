@@ -29,6 +29,18 @@ class FavoritesViewModel(
                 _state.update { it.copy(quotes = quotes, isLoading = false) }
             }
         }
+        viewModelScope.launch {
+            try {
+                favoritesRepository.refreshFavorites()
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        actionMessage = e.message ?: "Gagal memuat favorit",
+                    )
+                }
+            }
+        }
     }
 
     fun remove(quoteId: Long) {

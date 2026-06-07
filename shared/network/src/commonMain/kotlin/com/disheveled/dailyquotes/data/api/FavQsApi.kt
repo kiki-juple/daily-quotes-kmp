@@ -3,6 +3,8 @@ package com.disheveled.dailyquotes.data.api
 import com.disheveled.dailyquotes.data.api.dto.ApiErrorDto
 import com.disheveled.dailyquotes.data.api.dto.CreateSessionBody
 import com.disheveled.dailyquotes.data.api.dto.CreateSessionRequest
+import com.disheveled.dailyquotes.data.api.dto.QuoteDto
+import com.disheveled.dailyquotes.data.api.dto.QuoteListDto
 import com.disheveled.dailyquotes.data.api.dto.QuoteOfTheDayDto
 import com.disheveled.dailyquotes.data.api.dto.RegisterUserBody
 import com.disheveled.dailyquotes.data.api.dto.RegisterUserRequest
@@ -12,7 +14,9 @@ import io.ktor.client.HttpClient
 import io.ktor.client.network.sockets.SocketTimeoutException
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -81,6 +85,34 @@ class FavQsApi(private val client: HttpClient) {
             throw ApiException.NotFound("Pengguna \"$login\" tidak ditemukan")
         }
         parseOrThrow<UserDto>(response)
+    }
+
+    suspend fun getFavoriteQuotes(login: String, page: Int = 1): QuoteListDto = call {
+        require(login.isNotBlank()) { "Username wajib diisi" }
+        require(page > 0) { "Halaman tidak valid" }
+        val response = client.get {
+            url { path(FavQsConfig.BASE_PATH, "quotes") }
+            parameter("filter", login.trim())
+            parameter("type", "user")
+            parameter("page", page)
+        }
+        parseOrThrow<QuoteListDto>(response)
+    }
+
+    suspend fun favoriteQuote(quoteId: Long): QuoteDto = call {
+        require(quoteId > 0L) { "Kutipan tidak valid" }
+        val response = client.put {
+            url { path(FavQsConfig.BASE_PATH, "quotes", quoteId.toString(), "fav") }
+        }
+        parseOrThrow<QuoteDto>(response)
+    }
+
+    suspend fun unfavoriteQuote(quoteId: Long): QuoteDto = call {
+        require(quoteId > 0L) { "Kutipan tidak valid" }
+        val response = client.put {
+            url { path(FavQsConfig.BASE_PATH, "quotes", quoteId.toString(), "unfav") }
+        }
+        parseOrThrow<QuoteDto>(response)
     }
 
     private suspend inline fun <reified T> parseOrThrow(response: HttpResponse): T {

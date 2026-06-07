@@ -17,6 +17,9 @@ data class CreateSessionBody(
 @Serializable
 data class SessionDto(
     @SerialName("User-Token") val userToken: String? = null,
-    @SerialName("Login") val login: String? = null,
+    val login: String? = null,
+    @SerialName("Login") val loginUpper: String? = null,
     val email: String? = null,
-)
+) {
+    val effectiveLogin: String? get() = login ?: loginUpper
+}

@@ -170,16 +170,18 @@ private class FakeFavoritesRepository(
     override fun observeIsFavorite(quoteId: Long): Flow<Boolean> =
         favoriteIds.map { quoteId in it }
 
+    override suspend fun refreshFavorites() = Unit
+
     override suspend fun add(quote: Quote) {
         addError?.let { throw it }
-        favoriteIds.value = favoriteIds.value + quote.id
+        favoriteIds.value += quote.id
         favoriteQuotes.value = (listOf(quote) + favoriteQuotes.value)
             .distinctBy { it.id }
     }
 
     override suspend fun remove(quoteId: Long) {
         removeError?.let { throw it }
-        favoriteIds.value = favoriteIds.value - quoteId
+        favoriteIds.value -= quoteId
         favoriteQuotes.value = favoriteQuotes.value.filterNot { it.id == quoteId }
     }
 

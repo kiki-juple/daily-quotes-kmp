@@ -13,6 +13,13 @@ data class QuoteDto(
 )
 
 @Serializable
+data class QuoteListDto(
+    val page: Int = 1,
+    @SerialName("last_page") val lastPage: Boolean = true,
+    val quotes: List<QuoteDto> = emptyList(),
+)
+
+@Serializable
 data class QuoteOfTheDayDto(
     @SerialName("qotd_date") val qotdDate: String? = null,
     val quote: QuoteDto,

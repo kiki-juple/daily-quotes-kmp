@@ -34,9 +34,9 @@ class DefaultAuthRepository(
         val session = api.createSession(login.trim(), password)
         val token = session.userToken
             ?: throw ApiException.ApiError(
-                session.login?.let { "Tidak dapat masuk" } ?: "Username atau sandi salah",
+                session.effectiveLogin?.let { "Tidak dapat masuk" } ?: "Username atau sandi salah",
             )
-        val resolvedLogin = session.login ?: login.trim()
+        val resolvedLogin = session.effectiveLogin ?: login.trim()
         sessionStore.userToken = token
         sessionStore.login = resolvedLogin
         sessionStore.email = session.email

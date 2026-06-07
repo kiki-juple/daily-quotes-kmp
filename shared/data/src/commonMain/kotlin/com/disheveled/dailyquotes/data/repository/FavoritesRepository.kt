@@ -3,6 +3,9 @@ package com.disheveled.dailyquotes.data.repository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOneOrNull
+import com.disheveled.dailyquotes.data.api.FavQsApi
+import com.disheveled.dailyquotes.data.api.SessionStore
+import com.disheveled.dailyquotes.data.api.dto.QuoteDto
 import com.disheveled.dailyquotes.db.DailyQuotesDatabase
 import com.disheveled.dailyquotes.db.FavoriteQuote
 import com.disheveled.dailyquotes.domain.model.Quote
@@ -16,12 +19,17 @@ import kotlin.time.ExperimentalTime
 interface FavoritesRepository {
     fun observeFavorites(): Flow<List<Quote>>
     fun observeIsFavorite(quoteId: Long): Flow<Boolean>
+    suspend fun refreshFavorites()
     suspend fun add(quote: Quote)
     suspend fun remove(quoteId: Long)
 }
 
 @OptIn(ExperimentalTime::class)
-class DefaultFavoritesRepository(private val database: DailyQuotesDatabase) : FavoritesRepository {
+class DefaultFavoritesRepository(
+    private val api: FavQsApi,
+    private val database: DailyQuotesDatabase,
+    private val sessionStore: SessionStore,
+) : FavoritesRepository {
 
     override fun observeFavorites(): Flow<List<Quote>> =
         database.favoriteQuoteQueries.selectAll()
@@ -35,17 +43,45 @@ class DefaultFavoritesRepository(private val database: DailyQuotesDatabase) : Fa
             .mapToOneOrNull(Dispatchers.Default)
             .map { (it ?: 0L) > 0L }
 
+    override suspend fun refreshFavorites() {
+        val login = sessionStore.login?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        val favorites = mutableListOf<QuoteDto>()
+        var page = 1
+        do {
+            val response = api.getFavoriteQuotes(login = login, page = page)
+            favorites += response.quotes
+            val hasNextPage = !response.lastPage && response.quotes.isNotEmpty()
+            page += 1
+        } while (hasNextPage)
+
+        val savedAtEpochMs = Clock.System.now().toEpochMilliseconds()
+        database.transaction {
+            database.favoriteQuoteQueries.deleteAll()
+            favorites.forEachIndexed { index, quote ->
+                database.favoriteQuoteQueries.upsert(
+                    id = quote.id,
+                    body = quote.body,
+                    author = quote.author,
+                    favoritesCount = quote.favoritesCount.toLong(),
+                    savedAtEpochMs = savedAtEpochMs - index,
+                )
+            }
+        }
+    }
+
     override suspend fun add(quote: Quote) {
+        val favorites = api.favoriteQuote(quote.id)
         database.favoriteQuoteQueries.upsert(
-            id = quote.id,
-            body = quote.body,
-            author = quote.author,
-            favoritesCount = quote.favoritesCount.toLong(),
+            id = favorites.id,
+            body = favorites.body,
+            author = favorites.author,
+            favoritesCount = favorites.favoritesCount.toLong(),
             savedAtEpochMs = Clock.System.now().toEpochMilliseconds(),
         )
     }
 
     override suspend fun remove(quoteId: Long) {
+        api.unfavoriteQuote(quoteId)
         database.favoriteQuoteQueries.deleteById(quoteId)
     }
 

@@ -15,7 +15,9 @@ import org.koin.dsl.module
 val dataModule = module {
     single<AuthRepository> { DefaultAuthRepository(api = get(), sessionStore = get()) }
     single<QuoteRepository> { DefaultQuoteRepository(api = get(), database = get()) }
-    single<FavoritesRepository> { DefaultFavoritesRepository(database = get()) }
+    single<FavoritesRepository> {
+        DefaultFavoritesRepository(api = get(), database = get(), sessionStore = get())
+    }
 }
 
 fun sharedDataModules(): List<Module> =

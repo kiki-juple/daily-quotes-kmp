@@ -29,7 +29,7 @@ class AuthRepositoryTest {
         val engine = MockEngine { request ->
             when {
                 request.url.encodedPath.endsWith("/session") -> respondJson(
-                    """{"User-Token":"tok-123","Login":"kiki","email":"k@example.com"}""",
+                    """{"User-Token":"tok-123","login":"kiki","email":"k@example.com"}""",
                 )
 
                 request.url.encodedPath.endsWith("/users/kiki") -> respondJson(
@@ -56,6 +56,31 @@ class AuthRepositoryTest {
         assertEquals("kiki", sessionStore.login)
         // currentUser flow emitted
         assertNotNull(repo.currentUser.value)
+    }
+
+    @Test
+    fun loginWithEmailPersistsResolvedUsernameFromSession() = runTest {
+        val engine = MockEngine { request ->
+            when {
+                request.url.encodedPath.endsWith("/session") -> respondJson(
+                    """{"User-Token":"tok-123","login":"kiki","email":"k@example.com"}""",
+                )
+
+                request.url.encodedPath.endsWith("/users/kiki") -> respondJson(
+                    """{"login":"kiki","email":"k@example.com"}""",
+                )
+
+                else -> error("Unexpected request: ${request.url}")
+            }
+        }
+        val sessionStore = SessionStore(MapSettings())
+        val repo = DefaultAuthRepository(FavQsApi(buildClient(engine)), sessionStore)
+
+        val result = repo.login("k@example.com", "secret")
+
+        assertTrue(result.isSuccess, "expected success but got ${result.exceptionOrNull()}")
+        assertEquals("kiki", result.getOrNull()?.login)
+        assertEquals("kiki", sessionStore.login)
     }
 
     @Test
