@@ -13,21 +13,29 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
-class FavoritesRepository(private val database: DailyQuotesDatabase) {
+interface FavoritesRepository {
+    fun observeFavorites(): Flow<List<Quote>>
+    fun observeIsFavorite(quoteId: Long): Flow<Boolean>
+    suspend fun add(quote: Quote)
+    suspend fun remove(quoteId: Long)
+}
 
-    fun observeFavorites(): Flow<List<Quote>> =
+@OptIn(ExperimentalTime::class)
+class DefaultFavoritesRepository(private val database: DailyQuotesDatabase) : FavoritesRepository {
+
+    override fun observeFavorites(): Flow<List<Quote>> =
         database.favoriteQuoteQueries.selectAll()
             .asFlow()
             .mapToList(Dispatchers.Default)
             .map { rows -> rows.map { it.toQuote() } }
 
-    fun observeIsFavorite(quoteId: Long): Flow<Boolean> =
+    override fun observeIsFavorite(quoteId: Long): Flow<Boolean> =
         database.favoriteQuoteQueries.countById(quoteId)
             .asFlow()
             .mapToOneOrNull(Dispatchers.Default)
             .map { (it ?: 0L) > 0L }
 
-    suspend fun add(quote: Quote) {
+    override suspend fun add(quote: Quote) {
         database.favoriteQuoteQueries.upsert(
             id = quote.id,
             body = quote.body,
@@ -37,7 +45,7 @@ class FavoritesRepository(private val database: DailyQuotesDatabase) {
         )
     }
 
-    suspend fun remove(quoteId: Long) {
+    override suspend fun remove(quoteId: Long) {
         database.favoriteQuoteQueries.deleteById(quoteId)
     }
 

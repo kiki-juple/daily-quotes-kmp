@@ -92,12 +92,12 @@ class FavQsApi(private val client: HttpClient) {
             .getOrNull()
             ?.let { root ->
                 val looksLikeError = root.containsKey("error_code") ||
-                    (root.containsKey("message") &&
-                        !root.containsKey("login") &&
-                        !root.containsKey("Login") &&
-                        !root.containsKey("User-Token") &&
-                        !root.containsKey("quote") &&
-                        !root.containsKey("qotd_date"))
+                        (root.containsKey("message") &&
+                                !root.containsKey("login") &&
+                                !root.containsKey("Login") &&
+                                !root.containsKey("User-Token") &&
+                                !root.containsKey("quote") &&
+                                !root.containsKey("qotd_date"))
                 if (looksLikeError) {
                     throw apiErrorOf(raw, response.status)
                 }

@@ -6,16 +6,15 @@ plugins {
 }
 
 kotlin {
-    androidLibrary {
+    android {
         namespace = "com.disheveled.local"
-        compileSdk {
-            version = release(36) {
-                minorApiLevel = 1
-            }
-        }
-        minSdk = 29
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        minSdk = libs.versions.android.minSdk.get().toInt()
 
         withHostTestBuilder {
+        }
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
         }
     }
 

@@ -2,16 +2,22 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidApplication)
+    alias(libs.plugins.androidKotlinMultiplatformLibrary)
+    alias(libs.plugins.androidLint)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
-    androidTarget {
+    android {
+        namespace = "com.disheveled.dailyquotes.compose"
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        minSdk = libs.versions.android.minSdk.get().toInt()
+
+        withHostTestBuilder {}
         compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
+            jvmTarget.set(JvmTarget.JVM_21)
         }
     }
 
@@ -31,8 +37,6 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
-            implementation(libs.androidx.activity.compose)
-            implementation(libs.koin.android)
         }
         commonMain.dependencies {
             api(projects.shared.data)
@@ -58,37 +62,28 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }
 
-android {
-    namespace = "com.disheveled.dailyquotes"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
-
-    defaultConfig {
-        applicationId = "com.disheveled.dailyquotes"
-        minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
+// The `com.android.kotlin.multiplatform.library` plugin (required for KMP modules on AGP 9)
+// does not export Android assets to consuming application modules, so the Compose resources
+// bundled in this module never reach :androidApp's APK and the app crashes on first drawable
+// load with a MissingResourceException. Re-package the prepared Compose resources into a stable
+// directory that :androidApp adds to its asset source set (see androidApp/build.gradle.kts).
+//
+// The "dailyquotes.composeapp.generated.resources" segment is the runtime lookup path used by
+// the generated `Res` accessors; it must stay in sync with the generated Res package.
+tasks.register<Sync>("packageComposeResourcesForApp") {
+    val preparedRoot =
+        layout.buildDirectory.dir("generated/compose/resourceGenerator/preparedResources")
+    // Copy the children of each source set's `composeResources` dir (drawable/, font/, …)
+    // directly under the qualifier so the runtime lookup path is correct. Non-existent source
+    // dirs (e.g. an empty androidMain) are silently skipped by Sync.
+    listOf("CommonMain", "AndroidMain").forEach { sourceSet ->
+        dependsOn("prepareComposeResourcesTaskFor$sourceSet")
+        from(preparedRoot.map { it.dir("${sourceSet.replaceFirstChar(Char::lowercase)}/composeResources") })
     }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
-    buildTypes {
-        getByName("release") {
-            isMinifyEnabled = false
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-}
-
-dependencies {
-    debugImplementation(libs.compose.uiTooling)
+    into(layout.buildDirectory.dir("composeResourcesForApp/composeResources/dailyquotes.composeapp.generated.resources"))
 }

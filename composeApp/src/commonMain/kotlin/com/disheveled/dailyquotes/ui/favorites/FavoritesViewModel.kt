@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 data class FavoritesUiState(
     val quotes: List<Quote> = emptyList(),
     val isLoading: Boolean = true,
+    val actionMessage: String? = null,
 )
 
 class FavoritesViewModel(
@@ -34,9 +35,16 @@ class FavoritesViewModel(
         viewModelScope.launch {
             try {
                 favoritesRepository.remove(quoteId)
-            } catch (_: Exception) {
-                // observeFavorites flow keeps list in sync; no UI action needed
+                _state.update { it.copy(actionMessage = "Dihapus dari favorit") }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(actionMessage = e.message ?: "Gagal menghapus favorit")
+                }
             }
         }
+    }
+
+    fun consumeActionMessage() {
+        _state.update { it.copy(actionMessage = null) }
     }
 }

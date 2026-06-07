@@ -32,6 +32,7 @@ dependencyResolutionManagement {
 }
 
 include(":composeApp")
+include(":androidApp")
 include(":shared:network")
 include(":shared:local")
 include(":shared:data")

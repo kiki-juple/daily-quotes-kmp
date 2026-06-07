@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -131,7 +130,11 @@ fun TextLinkButton(
             .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = text, style = RenungTheme.typography.button.copy(fontSize = MaterialTheme.typography.bodyMedium.fontSize), color = color)
+        Text(
+            text = text,
+            style = RenungTheme.typography.button.copy(fontSize = MaterialTheme.typography.bodyMedium.fontSize),
+            color = color
+        )
     }
 }
 

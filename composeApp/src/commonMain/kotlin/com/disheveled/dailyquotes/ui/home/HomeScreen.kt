@@ -24,6 +24,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +38,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.disheveled.dailyquotes.ui.components.FilledButton
 import com.disheveled.dailyquotes.ui.components.QuoteCard
+import com.disheveled.dailyquotes.ui.platform.quoteShareText
+import com.disheveled.dailyquotes.ui.platform.rememberShareText
 import com.disheveled.dailyquotes.ui.theme.RenungColors
 import com.disheveled.dailyquotes.ui.theme.RenungTheme
 import com.disheveled.dailyquotes.ui.util.todayInIndonesian
@@ -53,7 +56,14 @@ fun HomeScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
+    val shareText = rememberShareText()
     var showLogoutDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state.actionMessage) {
+        val message = state.actionMessage ?: return@LaunchedEffect
+        onShowToast(message)
+        viewModel.consumeActionMessage()
+    }
 
     if (showLogoutDialog) {
         LogoutConfirmDialog(
@@ -126,13 +136,13 @@ fun HomeScreen(
                         quote = "“${quote.body.trim()}”",
                         author = quote.author,
                         saved = state.isFavorite,
-                        onToggleSave = { saved ->
+                        onToggleSave = {
                             viewModel.toggleFavorite()
-                            onShowToast(
-                                if (saved) "Disimpan ke favorit" else "Dihapus dari favorit",
-                            )
                         },
-                        onShare = { onShowToast("Tautan disalin") },
+                        onShare = {
+                            val shared = shareText(quoteShareText(quote))
+                            onShowToast(if (shared) "Siap dibagikan" else "Tidak bisa membuka berbagi")
+                        },
                     )
 
                     // Streak strip

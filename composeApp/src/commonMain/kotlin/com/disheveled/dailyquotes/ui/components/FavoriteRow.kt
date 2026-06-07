@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.disheveled.dailyquotes.ui.theme.RenungColors
 import com.disheveled.dailyquotes.ui.theme.RenungTheme
@@ -80,7 +81,13 @@ fun FavoriteRow(
                 )
                 Text(
                     text = "Hapus",
-                    style = RenungTheme.typography.button.copy(color = RenungColors.Cream, fontSize = androidx.compose.ui.unit.TextUnit(13f, androidx.compose.ui.unit.TextUnitType.Sp)),
+                    style = RenungTheme.typography.button.copy(
+                        color = RenungColors.Cream,
+                        fontSize = androidx.compose.ui.unit.TextUnit(
+                            13f,
+                            androidx.compose.ui.unit.TextUnitType.Sp
+                        )
+                    ),
                 )
             }
         }
@@ -88,7 +95,7 @@ fun FavoriteRow(
         // Foreground row that slides
         Box(
             modifier = Modifier
-                .offset(x = offsetX)
+                .offset { IntOffset(x = offsetX.roundToPx(), y = 0) }
                 .fillMaxWidth()
                 .background(RenungColors.Cream, RoundedCornerShape(16.dp))
                 .border(1.dp, RenungColors.Mist, RoundedCornerShape(16.dp))
@@ -104,8 +111,14 @@ fun FavoriteRow(
                         text = quote,
                         style = RenungTheme.typography.h3.copy(
                             color = RenungColors.Ink,
-                            fontSize = androidx.compose.ui.unit.TextUnit(17f, androidx.compose.ui.unit.TextUnitType.Sp),
-                            lineHeight = androidx.compose.ui.unit.TextUnit(24f, androidx.compose.ui.unit.TextUnitType.Sp),
+                            fontSize = androidx.compose.ui.unit.TextUnit(
+                                17f,
+                                androidx.compose.ui.unit.TextUnitType.Sp
+                            ),
+                            lineHeight = androidx.compose.ui.unit.TextUnit(
+                                24f,
+                                androidx.compose.ui.unit.TextUnitType.Sp
+                            ),
                             fontFamily = RenungTheme.typography.display.fontFamily,
                             fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
                         ),
@@ -139,4 +152,3 @@ fun FavoriteRow(
         }
     }
 }
-

@@ -41,7 +41,7 @@ class AuthRepositoryTest {
         }
         val settings = MapSettings()
         val sessionStore = SessionStore(settings)
-        val repo = AuthRepository(FavQsApi(buildClient(engine)), sessionStore)
+        val repo = DefaultAuthRepository(FavQsApi(buildClient(engine)), sessionStore)
 
         val result = repo.login("kiki", "secret")
 
@@ -72,7 +72,7 @@ class AuthRepositoryTest {
             putString("login", "stale-login")
         }
         val sessionStore = SessionStore(settings)
-        val repo = AuthRepository(FavQsApi(buildClient(engine)), sessionStore)
+        val repo = DefaultAuthRepository(FavQsApi(buildClient(engine)), sessionStore)
 
         val result = repo.login("kiki", "wrong")
 
@@ -84,6 +84,21 @@ class AuthRepositoryTest {
     }
 
     @Test
+    fun registerWithoutTokenFailsAndDoesNotPopulateCurrentUser() = runTest {
+        val engine = MockEngine { _ ->
+            respondJson("""{"login":"kiki","email":"k@example.com"}""")
+        }
+        val sessionStore = SessionStore(MapSettings())
+        val repo = DefaultAuthRepository(FavQsApi(buildClient(engine)), sessionStore)
+
+        val result = repo.register("kiki", "k@example.com", "password123")
+
+        assertTrue(result.isFailure)
+        assertNull(sessionStore.userToken)
+        assertNull(repo.currentUser.value)
+    }
+
+    @Test
     fun logoutClearsStateAndStore() = runTest {
         val settings = MapSettings().apply {
             putString("user_token", "tok")
@@ -91,7 +106,7 @@ class AuthRepositoryTest {
         }
         val sessionStore = SessionStore(settings)
         val engine = MockEngine { error("API should not be called during logout") }
-        val repo = AuthRepository(FavQsApi(buildClient(engine)), sessionStore)
+        val repo = DefaultAuthRepository(FavQsApi(buildClient(engine)), sessionStore)
 
         // restored at construction
         assertNotNull(repo.currentUser.value)

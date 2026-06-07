@@ -15,6 +15,7 @@ import kotlinx.serialization.json.Json
 object FavQsConfig {
     const val BASE_HOST: String = "favqs.com"
     const val BASE_PATH: String = "/api"
+
     // Sourced from local.properties (favqs.api.key) or env FAVQS_API_KEY via :shared:network generateApiKey task.
     val API_KEY: String get() = FAVQS_API_KEY
 }

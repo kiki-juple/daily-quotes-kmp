@@ -3,7 +3,6 @@ package com.disheveled.dailyquotes.ui.favorites
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +35,12 @@ fun FavoritesScreen(
     viewModel: FavoritesViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(state.actionMessage) {
+        val message = state.actionMessage ?: return@LaunchedEffect
+        onShowToast(message)
+        viewModel.consumeActionMessage()
+    }
 
     Box(
         modifier = Modifier
@@ -94,11 +100,9 @@ fun FavoritesScreen(
                             date = "Tersimpan",
                             onDelete = {
                                 viewModel.remove(quote.id)
-                                onShowToast("Dihapus dari favorit")
                             },
                             onUnsave = {
                                 viewModel.remove(quote.id)
-                                onShowToast("Dihapus dari favorit")
                             },
                         )
                     }

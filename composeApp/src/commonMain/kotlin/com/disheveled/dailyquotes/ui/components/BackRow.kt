@@ -24,9 +24,9 @@ import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun BackRow(
-    label: String = "Kembali",
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    label: String = "Kembali",
 ) {
     Box(modifier = modifier.padding(start = 4.dp, top = 4.dp)) {
         Row(

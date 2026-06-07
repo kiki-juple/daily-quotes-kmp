@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -198,7 +197,10 @@ fun GroupedFormRow(
                 if (value.isEmpty() && placeholder != null) {
                     Text(
                         text = placeholder,
-                        style = typo.body.copy(color = RenungColors.Ink4, textAlign = TextAlign.End),
+                        style = typo.body.copy(
+                            color = RenungColors.Ink4,
+                            textAlign = TextAlign.End
+                        ),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

@@ -10,14 +10,19 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
-class QuoteRepository(
+interface QuoteRepository {
+    suspend fun getQuoteOfTheDay(): Result<Quote>
+}
+
+@OptIn(ExperimentalTime::class)
+class DefaultQuoteRepository(
     private val api: FavQsApi,
     private val database: DailyQuotesDatabase,
     private val clock: Clock = Clock.System,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
-) {
+) : QuoteRepository {
 
-    suspend fun getQuoteOfTheDay(): Result<Quote> = resultOf {
+    override suspend fun getQuoteOfTheDay(): Result<Quote> = resultOf {
         val today = clock.now().toLocalDateTime(timeZone).date.toString()
         val cached = database.quoteOfTheDayQueries.selectForDate(today).executeAsOneOrNull()
         if (cached != null) {

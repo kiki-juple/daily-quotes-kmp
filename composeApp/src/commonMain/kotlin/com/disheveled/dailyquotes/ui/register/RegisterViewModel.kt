@@ -29,10 +29,12 @@ class RegisterViewModel(
     fun onEmailChange(value: String) = _state.update { it.copy(email = value, errorMessage = null) }
     fun onPasswordChange(value: String) =
         _state.update { it.copy(password = value, errorMessage = null) }
+
     fun onConfirmPasswordChange(value: String) =
         _state.update { it.copy(confirmPassword = value, errorMessage = null) }
 
     fun submit() {
+        if (_state.value.isSubmitting) return
         val s = _state.value
         val login = s.login.trim()
         val email = s.email.trim()

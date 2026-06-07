@@ -32,6 +32,7 @@ class LoginViewModel(
     }
 
     fun submit() {
+        if (_state.value.isSubmitting) return
         val login = _state.value.login.trim()
         val password = _state.value.password
         if (login.isEmpty() || password.isEmpty()) {

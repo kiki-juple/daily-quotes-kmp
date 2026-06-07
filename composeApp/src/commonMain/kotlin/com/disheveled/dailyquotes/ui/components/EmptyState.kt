@@ -56,7 +56,10 @@ fun EmptyState(
             text = title,
             style = RenungTheme.typography.h1.copy(
                 color = RenungColors.Ink,
-                fontSize = androidx.compose.ui.unit.TextUnit(22f, androidx.compose.ui.unit.TextUnitType.Sp),
+                fontSize = androidx.compose.ui.unit.TextUnit(
+                    22f,
+                    androidx.compose.ui.unit.TextUnitType.Sp
+                ),
             ),
             textAlign = TextAlign.Center,
         )

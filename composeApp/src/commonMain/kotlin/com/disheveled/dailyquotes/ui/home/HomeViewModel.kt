@@ -8,6 +8,7 @@ import com.disheveled.dailyquotes.data.repository.QuoteRepository
 import com.disheveled.dailyquotes.domain.model.Quote
 import com.disheveled.dailyquotes.domain.model.User
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,8 +23,10 @@ data class HomeUiState(
     val isLoading: Boolean = false,
     val quote: Quote? = null,
     val isFavorite: Boolean = false,
+    val isFavoriteUpdating: Boolean = false,
     val user: User? = null,
     val errorMessage: String? = null,
+    val actionMessage: String? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -37,6 +40,7 @@ class HomeViewModel(
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
     private val _quoteId = MutableStateFlow<Long?>(null)
+    private var refreshJob: Job? = null
 
     init {
         // Calls refresh() on first load AND whenever the user re-logs in.
@@ -46,7 +50,20 @@ class HomeViewModel(
             authRepository.currentUser
                 .collect { user ->
                     _state.update { it.copy(user = user) }
-                    if (user != null) refresh()
+                    if (user != null) {
+                        refresh()
+                    } else {
+                        _quoteId.value = null
+                        _state.update {
+                            it.copy(
+                                isLoading = false,
+                                quote = null,
+                                isFavorite = false,
+                                isFavoriteUpdating = false,
+                                errorMessage = null,
+                            )
+                        }
+                    }
                 }
         }
 
@@ -59,8 +76,9 @@ class HomeViewModel(
     }
 
     fun refresh() {
+        if (refreshJob?.isActive == true) return
         _state.update { it.copy(isLoading = true, errorMessage = null) }
-        viewModelScope.launch {
+        refreshJob = viewModelScope.launch {
             val result = quoteRepository.getQuoteOfTheDay()
             result.fold(
                 onSuccess = { quote ->
@@ -81,7 +99,10 @@ class HomeViewModel(
 
     fun toggleFavorite() {
         val quote = _state.value.quote ?: return
+        if (_state.value.isFavoriteUpdating) return
         val currentlyFavorite = _state.value.isFavorite
+        val shouldSave = !currentlyFavorite
+        _state.update { it.copy(isFavoriteUpdating = true, actionMessage = null) }
         viewModelScope.launch {
             try {
                 if (currentlyFavorite) {
@@ -89,10 +110,29 @@ class HomeViewModel(
                 } else {
                     favoritesRepository.add(quote)
                 }
-            } catch (_: Exception) {
-                // isFavorite reverts automatically via observeIsFavorite flow
+                _state.update {
+                    it.copy(
+                        isFavoriteUpdating = false,
+                        actionMessage = if (shouldSave) {
+                            "Disimpan ke favorit"
+                        } else {
+                            "Dihapus dari favorit"
+                        },
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        isFavoriteUpdating = false,
+                        actionMessage = e.message ?: "Gagal memperbarui favorit",
+                    )
+                }
             }
         }
+    }
+
+    fun consumeActionMessage() {
+        _state.update { it.copy(actionMessage = null) }
     }
 
     fun logout() {

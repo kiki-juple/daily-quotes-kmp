@@ -52,7 +52,10 @@ fun RenungSnackbar(
                         text = action,
                         style = RenungTheme.typography.button.copy(
                             color = RenungColors.ClaySoft,
-                            fontSize = androidx.compose.ui.unit.TextUnit(13f, androidx.compose.ui.unit.TextUnitType.Sp),
+                            fontSize = androidx.compose.ui.unit.TextUnit(
+                                13f,
+                                androidx.compose.ui.unit.TextUnitType.Sp
+                            ),
                         ),
                         modifier = if (onAction != null) Modifier
                             .padding(start = 12.dp)
