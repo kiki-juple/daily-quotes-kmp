@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.disheveled.dailyquotes.ui.components.FilledButton
 import com.disheveled.dailyquotes.ui.components.GroupedFormGroup
 import com.disheveled.dailyquotes.ui.components.GroupedFormRow
+import com.disheveled.dailyquotes.ui.login.LoginUiState
 import com.disheveled.dailyquotes.ui.login.LoginViewModel
 import com.disheveled.dailyquotes.ui.theme.RenungColors
 import com.disheveled.dailyquotes.ui.theme.RenungTheme
@@ -45,10 +46,27 @@ fun LoginScreen(
     viewModel: LoginViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val submitting = state.isSubmitting
+    LoginContent(
+        state = state,
+        onGoToRegister = onGoToRegister,
+        onLoginChange = viewModel::onLoginChange,
+        onPasswordChange = viewModel::onPasswordChange,
+        onSubmit = viewModel::submit,
+    )
+}
 
+@Composable
+fun LoginContent(
+    state: LoginUiState,
+    onGoToRegister: () -> Unit,
+    onLoginChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val submitting = state.isSubmitting
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(RenungColors.Paper),
     ) {
@@ -87,14 +105,14 @@ fun LoginScreen(
                 GroupedFormRow(
                     label = "Username",
                     value = state.login,
-                    onValueChange = viewModel::onLoginChange,
+                    onValueChange = onLoginChange,
                     placeholder = "namamu",
                     enabled = !submitting,
                 )
                 GroupedFormRow(
                     label = "Sandi",
                     value = state.password,
-                    onValueChange = viewModel::onPasswordChange,
+                    onValueChange = onPasswordChange,
                     placeholder = "••••••••",
                     keyboardType = KeyboardType.Password,
                     isPassword = true,
@@ -105,7 +123,7 @@ fun LoginScreen(
 
             if (state.errorMessage != null) {
                 Text(
-                    text = state.errorMessage!!,
+                    text = state.errorMessage,
                     style = RenungTheme.typography.caption.copy(color = RenungColors.Error),
                     modifier = Modifier.padding(horizontal = 4.dp),
                 )
@@ -114,7 +132,7 @@ fun LoginScreen(
             Box {
                 FilledButton(
                     text = if (submitting) "" else "Masuk",
-                    onClick = { viewModel.submit() },
+                    onClick = onSubmit,
                     enabled = !submitting,
                 )
                 if (submitting) {

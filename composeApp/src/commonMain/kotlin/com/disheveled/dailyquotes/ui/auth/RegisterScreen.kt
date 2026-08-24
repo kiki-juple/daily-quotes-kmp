@@ -29,6 +29,7 @@ import com.disheveled.dailyquotes.ui.components.BackRow
 import com.disheveled.dailyquotes.ui.components.FilledButton
 import com.disheveled.dailyquotes.ui.components.GroupedFormGroup
 import com.disheveled.dailyquotes.ui.components.GroupedFormRow
+import com.disheveled.dailyquotes.ui.register.RegisterUiState
 import com.disheveled.dailyquotes.ui.register.RegisterViewModel
 import com.disheveled.dailyquotes.ui.theme.RenungColors
 import com.disheveled.dailyquotes.ui.theme.RenungTheme
@@ -40,10 +41,31 @@ fun RegisterScreen(
     viewModel: RegisterViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val submitting = state.isSubmitting
+    RegisterContent(
+        state = state,
+        onBack = onBack,
+        onLoginChange = viewModel::onLoginChange,
+        onEmailChange = viewModel::onEmailChange,
+        onPasswordChange = viewModel::onPasswordChange,
+        onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
+        onSubmit = viewModel::submit,
+    )
+}
 
+@Composable
+fun RegisterContent(
+    state: RegisterUiState,
+    onBack: () -> Unit,
+    onLoginChange: (String) -> Unit,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onConfirmPasswordChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val submitting = state.isSubmitting
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(RenungColors.Paper),
     ) {
@@ -73,14 +95,14 @@ fun RegisterScreen(
                 GroupedFormRow(
                     label = "Username",
                     value = state.login,
-                    onValueChange = viewModel::onLoginChange,
+                    onValueChange = onLoginChange,
                     placeholder = "namamu",
                     enabled = !submitting,
                 )
                 GroupedFormRow(
                     label = "Email",
                     value = state.email,
-                    onValueChange = viewModel::onEmailChange,
+                    onValueChange = onEmailChange,
                     placeholder = "kamu@email.com",
                     keyboardType = KeyboardType.Email,
                     isLast = true,
@@ -92,7 +114,7 @@ fun RegisterScreen(
                 GroupedFormRow(
                     label = "Sandi",
                     value = state.password,
-                    onValueChange = viewModel::onPasswordChange,
+                    onValueChange = onPasswordChange,
                     placeholder = "••••••••",
                     keyboardType = KeyboardType.Password,
                     isPassword = true,
@@ -101,7 +123,7 @@ fun RegisterScreen(
                 GroupedFormRow(
                     label = "Ulangi",
                     value = state.confirmPassword,
-                    onValueChange = viewModel::onConfirmPasswordChange,
+                    onValueChange = onConfirmPasswordChange,
                     placeholder = "••••••••",
                     keyboardType = KeyboardType.Password,
                     isPassword = true,
@@ -112,7 +134,7 @@ fun RegisterScreen(
 
             if (state.errorMessage != null) {
                 Text(
-                    text = state.errorMessage!!,
+                    text = state.errorMessage,
                     style = RenungTheme.typography.caption.copy(color = RenungColors.Error),
                     modifier = Modifier.padding(horizontal = 4.dp),
                 )
@@ -121,7 +143,7 @@ fun RegisterScreen(
             Box {
                 FilledButton(
                     text = if (submitting) "" else "Buat akun",
-                    onClick = { viewModel.submit() },
+                    onClick = onSubmit,
                     enabled = !submitting,
                 )
                 if (submitting) {
