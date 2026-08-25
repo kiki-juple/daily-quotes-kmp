@@ -16,25 +16,38 @@ val favqsApiKey: Provider<String> = providers.fileContents(
     rootProject.layout.projectDirectory.file("local.properties"),
 ).asText.map { text ->
     Properties().apply { text.reader().use { load(it) } }.getProperty("favqs.api.key").orEmpty()
-}.orElse(providers.environmentVariable("FAVQS_API_KEY")).orElse("")
+}
+    // A local.properties that exists but does not define the key maps to "", which counts as a
+    // value and would make orElse skip the environment entirely. Filtering blanks out leaves the
+    // provider empty so the fallback chain actually runs — CI has no local.properties at all, but a
+    // dev machine has one holding just sdk.dir.
+    .filter { it.isNotBlank() }
+    .orElse(providers.environmentVariable("FAVQS_API_KEY"))
+    .orElse("")
 
 val requestedReleaseBuild = gradle.startParameter.taskNames.any { taskName ->
     taskName.contains("Release", ignoreCase = true) &&
             (taskName.contains("androidApp") || ":" !in taskName)
 }
 
+// Checked here rather than inside the task: a doLast check is skipped whenever the task is
+// UP-TO-DATE, so a release right after a keyless debug build would sail through with an empty key.
+// Reading these providers at configuration time is what registers them as configuration-cache
+// inputs, so this does not defeat the cache.
+if (requestedReleaseBuild) {
+    check(favqsApiKey.get().isNotBlank()) {
+        "Missing FavQs API key. Add favqs.api.key to local.properties or set FAVQS_API_KEY " +
+                "before building a release."
+    }
+}
+
 val generateApiKey by tasks.registering {
     val outputDirProvider = layout.buildDirectory.dir("generated/source/apikey/commonMain")
     val apiKey = favqsApiKey
-    val failOnMissingKey = requestedReleaseBuild
     outputs.dir(outputDirProvider)
     inputs.property("apiKey", apiKey)
     doLast {
         val key = apiKey.get()
-        check(!failOnMissingKey || key.isNotBlank()) {
-            "Missing FavQs API key. Add favqs.api.key to local.properties or set FAVQS_API_KEY " +
-                    "before building a release."
-        }
         val pkgDir = outputDirProvider.get().asFile.resolve("com/disheveled/dailyquotes/data/api")
         pkgDir.mkdirs()
         pkgDir.resolve("GeneratedApiKey.kt").writeText(
