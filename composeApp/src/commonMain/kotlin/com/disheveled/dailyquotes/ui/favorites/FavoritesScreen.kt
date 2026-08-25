@@ -24,13 +24,13 @@ import com.disheveled.dailyquotes.ui.components.EmptyState
 import com.disheveled.dailyquotes.ui.components.FavoriteRow
 import com.disheveled.dailyquotes.ui.theme.RenungColors
 import com.disheveled.dailyquotes.ui.theme.RenungTheme
+import com.disheveled.dailyquotes.ui.util.formatSavedAt
 import dailyquotes.composeapp.generated.resources.Res
 import dailyquotes.composeapp.generated.resources.heart
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun FavoritesScreen(
-    onBack: () -> Unit = {},
     onShowToast: (String) -> Unit = {},
     viewModel: FavoritesViewModel = koinViewModel(),
 ) {
@@ -93,17 +93,12 @@ fun FavoritesScreen(
                         }
                         Spacer(Modifier.height(6.dp))
                     }
-                    items(state.quotes, key = { it.id }) { quote ->
+                    items(state.quotes, key = { it.quote.id }) { saved ->
                         FavoriteRow(
-                            quote = "“${quote.body.trim()}”",
-                            author = quote.author,
-                            date = "Tersimpan",
-                            onDelete = {
-                                viewModel.remove(quote.id)
-                            },
-                            onUnsave = {
-                                viewModel.remove(quote.id)
-                            },
+                            quote = "“${saved.quote.body.trim()}”",
+                            author = saved.quote.author,
+                            date = formatSavedAt(saved.savedAtEpochMs),
+                            onRemove = { viewModel.remove(saved.quote.id) },
                         )
                     }
                 }

@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  jvm:
+    name: Tests + Android build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Repository tests run against MockEngine and an in-memory database, so a real key is not
+      # needed for them. Set the FAVQS_API_KEY secret to also produce a working release build.
+      - name: Tests
+        env:
+          FAVQS_API_KEY: ${{ secrets.FAVQS_API_KEY }}
+        run: |
+          ./gradlew --no-daemon \
+            :shared:network:testAndroidHostTest \
+            :shared:data:testAndroidHostTest \
+            :composeApp:testAndroidHostTest \
+            :androidApp:testDebugUnitTest
+
+      - name: Assemble debug
+        env:
+          FAVQS_API_KEY: ${{ secrets.FAVQS_API_KEY }}
+        run: ./gradlew --no-daemon :androidApp:assembleDebug
+
+      - name: Lint
+        run: ./gradlew --no-daemon :composeApp:lint :shared:data:lint :shared:network:lint :shared:local:lint
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/**'
+
+  ios:
+    name: iOS tests + framework
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The same commonTest suite as the JVM job, executed on the iOS simulator against
+      # NativeSqliteDriver.
+      - name: Tests (iOS simulator)
+        env:
+          FAVQS_API_KEY: ${{ secrets.FAVQS_API_KEY }}
+        run: ./gradlew --no-daemon :shared:data:iosSimulatorArm64Test
+
+      - name: Link framework
+        env:
+          FAVQS_API_KEY: ${{ secrets.FAVQS_API_KEY }}
+        run: ./gradlew --no-daemon :composeApp:linkDebugFrameworkIosSimulatorArm64

@@ -52,6 +52,8 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
 
             implementation(libs.navigation3.runtime)
+            // rememberSerializable, used to keep NavBackStack across config changes/process death.
+            implementation(libs.savedstate.compose)
 
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
@@ -78,12 +80,21 @@ kotlin {
 tasks.register<Sync>("packageComposeResourcesForApp") {
     val preparedRoot =
         layout.buildDirectory.dir("generated/compose/resourceGenerator/preparedResources")
-    // Copy the children of each source set's `composeResources` dir (drawable/, font/, …)
-    // directly under the qualifier so the runtime lookup path is correct. Non-existent source
-    // dirs (e.g. an empty androidMain) are silently skipped by Sync.
+    // The destination is the directory :androidApp registers as an asset source, so the
+    // qualifier path has to be built up inside it rather than baked into `into` — otherwise the
+    // task's own output directory is the qualifier dir and the assets land one level too deep.
+    //
+    // The "dailyquotes.composeapp.generated.resources" segment is the runtime lookup path used by
+    // the generated `Res` accessors; it must stay in sync with the generated Res package.
     listOf("CommonMain", "AndroidMain").forEach { sourceSet ->
         dependsOn("prepareComposeResourcesTaskFor$sourceSet")
-        from(preparedRoot.map { it.dir("${sourceSet.replaceFirstChar(Char::lowercase)}/composeResources") })
+        from(
+            preparedRoot.map {
+                it.dir("${sourceSet.replaceFirstChar(Char::lowercase)}/composeResources")
+            },
+        ) {
+            into("composeResources/dailyquotes.composeapp.generated.resources")
+        }
     }
-    into(layout.buildDirectory.dir("composeResourcesForApp/composeResources/dailyquotes.composeapp.generated.resources"))
+    into(layout.buildDirectory.dir("composeResourcesForApp"))
 }

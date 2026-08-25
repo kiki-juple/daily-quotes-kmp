@@ -36,11 +36,12 @@ fun <T : NavKey> RenungNavDisplay(
     BackHandler(enabled = backStack.size > 1) { onBack() }
 
     AnimatedContent(
-        targetState = top,
+        // The stack depth travels with the state instead of being read off `backStack` inside
+        // `transitionSpec`: by the time a transition is set up the popped entry is already gone from
+        // the list, so looking up its index there returns -1 and every pop animates like a push.
+        targetState = NavSlot(top, backStack.size),
         transitionSpec = {
-            val initialIndex = backStack.indexOf(initialState)
-            val targetIndex = backStack.indexOf(targetState)
-            val goingForward = targetIndex >= initialIndex
+            val goingForward = targetState.depth >= initialState.depth
             val enter = if (goingForward) {
                 slideInHorizontally(initialOffsetX = { it / 4 }) + fadeIn()
             } else {
@@ -54,11 +55,14 @@ fun <T : NavKey> RenungNavDisplay(
             (enter togetherWith exit).using(SizeTransform(clip = false))
         },
         modifier = modifier.fillMaxSize(),
-        contentKey = { entryProvider(it).contentKey },
+        contentKey = { entryProvider(it.key).contentKey },
         label = "RenungNavDisplay",
-    ) { key ->
+    ) { slot ->
         Box(Modifier.fillMaxSize()) {
-            entryProvider(key).Content()
+            entryProvider(slot.key).Content()
         }
     }
 }
+
+/** The rendered destination plus the stack depth it sat at, so pops can be told from pushes. */
+private data class NavSlot<T : NavKey>(val key: T, val depth: Int)

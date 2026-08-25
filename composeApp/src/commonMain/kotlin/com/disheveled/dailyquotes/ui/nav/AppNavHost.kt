@@ -15,6 +15,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSerializable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.serialization.NavBackStackSerializer
 import com.disheveled.dailyquotes.data.repository.AuthRepository
 import com.disheveled.dailyquotes.ui.components.NavBar
 import com.disheveled.dailyquotes.ui.components.NavBarItem
@@ -53,7 +55,12 @@ fun AppNavHost(authRepository: AuthRepository = koinInject()) {
 
 @Composable
 private fun MainNavHost() {
-    val backStack = remember { NavBackStack<MainScreen>(MainScreen.Home) }
+    // rememberSerializable (not remember) so the selected tab survives configuration changes and
+    // process death; MainScreen is a sealed @Serializable hierarchy, so closed polymorphism is
+    // enough and no SerializersModule is needed.
+    val backStack = rememberSerializable(
+        serializer = NavBackStackSerializer(MainScreen.serializer()),
+    ) { NavBackStack<MainScreen>(MainScreen.Home) }
 
     var toastMessage by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(toastMessage) {
@@ -104,7 +111,6 @@ private fun MainNavHost() {
                 }
                 entry<MainScreen.Favorites> {
                     FavoritesScreen(
-                        onBack = { backStack.removeLastOrNull() },
                         onShowToast = { toastMessage = it },
                     )
                 }
@@ -134,6 +140,9 @@ private fun MainNavHost() {
         NavBar(
             items = items,
             active = activeId,
+            // Home stays the root and Favorites is pushed on top of it. The previous
+            // clear()-then-add() kept the stack at size 1, which left RenungNavDisplay's
+            // BackHandler permanently disabled: system back exited the app from the Favorites tab.
             onSelect = { id ->
                 val target = when (id) {
                     "home" -> MainScreen.Home
@@ -141,8 +150,11 @@ private fun MainNavHost() {
                     else -> MainScreen.Home
                 }
                 if (target != backStack.lastOrNull()) {
-                    backStack.clear()
-                    backStack.add(target)
+                    if (target == MainScreen.Home) {
+                        while (backStack.size > 1) backStack.removeLastOrNull()
+                    } else {
+                        backStack.add(target)
+                    }
                 }
             },
         )

@@ -4,8 +4,10 @@ import com.disheveled.dailyquotes.data.repository.AuthRepository
 import com.disheveled.dailyquotes.data.repository.FavoritesRepository
 import com.disheveled.dailyquotes.data.repository.QuoteRepository
 import com.disheveled.dailyquotes.domain.model.Quote
+import com.disheveled.dailyquotes.domain.model.SavedQuote
 import com.disheveled.dailyquotes.domain.model.User
 import com.disheveled.dailyquotes.ui.favorites.FavoritesViewModel
+import com.disheveled.dailyquotes.ui.home.HomeContent
 import com.disheveled.dailyquotes.ui.home.HomeViewModel
 import com.disheveled.dailyquotes.ui.login.LoginViewModel
 import com.disheveled.dailyquotes.ui.register.RegisterViewModel
@@ -24,6 +26,7 @@ import kotlinx.coroutines.test.setMain
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -42,9 +45,62 @@ class ViewModelTest {
 
         advanceUntilIdle()
 
-        assertFalse(viewModel.state.value.isLoading)
-        assertEquals(quote, viewModel.state.value.quote)
-        assertTrue(viewModel.state.value.isFavorite)
+        val content = assertIs<HomeContent.Loaded>(viewModel.state.value.content)
+        assertEquals(quote, content.quote)
+        assertTrue(content.isFavorite)
+        assertTrue(viewModel.state.value.today.isNotEmpty(), "the header date travels with the quote")
+    }
+
+    @Test
+    fun homeFailureSurfacesAsErrorContent() = runViewModelTest {
+        val viewModel = HomeViewModel(
+            quoteRepository = FakeQuoteRepository(Result.failure(IllegalStateException("Jaringan mati"))),
+            favoritesRepository = FakeFavoritesRepository(),
+            authRepository = FakeAuthRepository(),
+        )
+
+        advanceUntilIdle()
+
+        assertEquals(HomeContent.Error("Jaringan mati"), viewModel.state.value.content)
+    }
+
+    @Test
+    fun homeToggleFavoriteFlipsTheHeartBeforeTheRepositoryAnswers() = runViewModelTest {
+        val quote = sampleQuote()
+        val favorites = FakeFavoritesRepository()
+        val viewModel = HomeViewModel(
+            quoteRepository = FakeQuoteRepository(Result.success(quote)),
+            favoritesRepository = favorites,
+            authRepository = FakeAuthRepository(),
+        )
+        advanceUntilIdle()
+        assertFalse(assertIs<HomeContent.Loaded>(viewModel.state.value.content).isFavorite)
+
+        viewModel.toggleFavorite()
+
+        // No advanceUntilIdle: the optimistic flip must already be visible.
+        val optimistic = assertIs<HomeContent.Loaded>(viewModel.state.value.content)
+        assertTrue(optimistic.isFavorite, "the heart must fill before the network round trip")
+        assertTrue(optimistic.isFavoriteUpdating)
+    }
+
+    @Test
+    fun homeToggleFavoriteRollsTheHeartBackWhenTheRepositoryFails() = runViewModelTest {
+        val quote = sampleQuote()
+        val favorites = FakeFavoritesRepository(addError = IllegalStateException("Gagal"))
+        val viewModel = HomeViewModel(
+            quoteRepository = FakeQuoteRepository(Result.success(quote)),
+            favoritesRepository = favorites,
+            authRepository = FakeAuthRepository(),
+        )
+        advanceUntilIdle()
+
+        viewModel.toggleFavorite()
+        advanceUntilIdle()
+
+        val content = assertIs<HomeContent.Loaded>(viewModel.state.value.content)
+        assertFalse(content.isFavorite, "an optimistic flip must be undone on failure")
+        assertFalse(content.isFavoriteUpdating)
     }
 
     @Test
@@ -122,7 +178,7 @@ class ViewModelTest {
         val viewModel = FavoritesViewModel(favorites)
         advanceUntilIdle()
 
-        assertEquals(listOf(quote), viewModel.state.value.quotes)
+        assertEquals(listOf(quote), viewModel.state.value.quotes.map { it.quote })
 
         viewModel.remove(quote.id)
         advanceUntilIdle()
@@ -162,10 +218,12 @@ private class FakeFavoritesRepository(
     private val removeError: Throwable? = null,
 ) : FavoritesRepository {
 
-    private val favoriteQuotes = MutableStateFlow(initialQuotes)
+    private val favoriteQuotes = MutableStateFlow(
+        initialQuotes.mapIndexed { index, quote -> SavedQuote(quote, savedAtEpochMs = -index.toLong()) },
+    )
     private val favoriteIds = MutableStateFlow(initialFavoriteIds)
 
-    override fun observeFavorites(): Flow<List<Quote>> = favoriteQuotes
+    override fun observeFavorites(): Flow<List<SavedQuote>> = favoriteQuotes
 
     override fun observeIsFavorite(quoteId: Long): Flow<Boolean> =
         favoriteIds.map { quoteId in it }
@@ -175,14 +233,14 @@ private class FakeFavoritesRepository(
     override suspend fun add(quote: Quote) {
         addError?.let { throw it }
         favoriteIds.value += quote.id
-        favoriteQuotes.value = (listOf(quote) + favoriteQuotes.value)
-            .distinctBy { it.id }
+        favoriteQuotes.value = (listOf(SavedQuote(quote, savedAtEpochMs = 0)) + favoriteQuotes.value)
+            .distinctBy { it.quote.id }
     }
 
     override suspend fun remove(quoteId: Long) {
         removeError?.let { throw it }
         favoriteIds.value -= quoteId
-        favoriteQuotes.value = favoriteQuotes.value.filterNot { it.id == quoteId }
+        favoriteQuotes.value = favoriteQuotes.value.filterNot { it.quote.id == quoteId }
     }
 
     fun isFavorite(quoteId: Long): Boolean = quoteId in favoriteIds.value
@@ -216,7 +274,7 @@ private class FakeAuthRepository(
         return registerResult
     }
 
-    override fun logout() {
+    override suspend fun logout() {
         user.value = null
     }
 }

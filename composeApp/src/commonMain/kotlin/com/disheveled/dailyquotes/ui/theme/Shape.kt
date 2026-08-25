@@ -9,7 +9,6 @@ object RenungShapes {
     val Sm = RoundedCornerShape(10.dp)
     val Md = RoundedCornerShape(16.dp)
     val Lg = RoundedCornerShape(24.dp)
-    val Pill = RoundedCornerShape(999.dp)
 }
 
 internal val MaterialShapes = Shapes(

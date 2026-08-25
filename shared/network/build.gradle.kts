@@ -7,21 +7,34 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
 }
 
-val favqsApiKey: String = run {
-    val localProps = rootProject.file("local.properties").takeIf { it.exists() }?.let { f ->
-        Properties().apply { f.inputStream().use { load(it) } }
-    }
-    localProps?.getProperty("favqs.api.key")
-        ?: System.getenv("FAVQS_API_KEY")
-        ?: ""
+// The single place the FavQs key is read. :androidApp used to repeat this block just to validate it
+// for release builds; that check lives here now, next to the value it guards.
+//
+// Wrapped in providers so Gradle tracks local.properties/the env var as inputs instead of reading
+// them eagerly at configuration time, which is what breaks the configuration cache.
+val favqsApiKey: Provider<String> = providers.fileContents(
+    rootProject.layout.projectDirectory.file("local.properties"),
+).asText.map { text ->
+    Properties().apply { text.reader().use { load(it) } }.getProperty("favqs.api.key").orEmpty()
+}.orElse(providers.environmentVariable("FAVQS_API_KEY")).orElse("")
+
+val requestedReleaseBuild = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("Release", ignoreCase = true) &&
+            (taskName.contains("androidApp") || ":" !in taskName)
 }
 
 val generateApiKey by tasks.registering {
     val outputDirProvider = layout.buildDirectory.dir("generated/source/apikey/commonMain")
     val apiKey = favqsApiKey
+    val failOnMissingKey = requestedReleaseBuild
     outputs.dir(outputDirProvider)
     inputs.property("apiKey", apiKey)
     doLast {
+        val key = apiKey.get()
+        check(!failOnMissingKey || key.isNotBlank()) {
+            "Missing FavQs API key. Add favqs.api.key to local.properties or set FAVQS_API_KEY " +
+                    "before building a release."
+        }
         val pkgDir = outputDirProvider.get().asFile.resolve("com/disheveled/dailyquotes/data/api")
         pkgDir.mkdirs()
         pkgDir.resolve("GeneratedApiKey.kt").writeText(
@@ -29,7 +42,7 @@ val generateApiKey by tasks.registering {
             // Generated; do not edit. Source: local.properties (favqs.api.key) or env FAVQS_API_KEY.
             package com.disheveled.dailyquotes.data.api
 
-            internal const val FAVQS_API_KEY: String = "$apiKey"
+            internal const val FAVQS_API_KEY: String = "$key"
             """.trimIndent() + "\n"
         )
     }
@@ -57,11 +70,8 @@ kotlin {
         }
 
         commonMain.dependencies {
-            implementation(libs.kotlin.stdlib)
-
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.contentNegotiation)
-            implementation(libs.ktor.client.logging)
             implementation(libs.ktor.serialization.json)
 
             implementation(libs.kotlinx.serialization.json)
