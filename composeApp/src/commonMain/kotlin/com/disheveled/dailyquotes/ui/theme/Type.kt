@@ -13,8 +13,12 @@ import dailyquotes.composeapp.generated.resources.newsreader_italic
 import dailyquotes.composeapp.generated.resources.plus_jakarta_sans
 import org.jetbrains.compose.resources.Font
 
+/**
+ * Not a `remember*` function: [Font] is itself `@Composable`, so the families are rebuilt with the
+ * composition. [DailyQuotesTheme] memoizes what is derived from them.
+ */
 @Composable
-fun rememberRenungFontFamilies(): RenungFontFamilies {
+fun renungFontFamilies(): RenungFontFamilies {
     val newsreader = FontFamily(
         Font(Res.font.newsreader, weight = FontWeight.Normal, style = FontStyle.Normal),
         Font(Res.font.newsreader, weight = FontWeight.Medium, style = FontStyle.Normal),
@@ -50,6 +54,8 @@ data class RenungTypography(
     val attribution: TextStyle,
     val button: TextStyle,
     val label: TextStyle,
+    /** The quote as it appears in a favorites row: display face, tighter than [h3]. */
+    val quoteRow: TextStyle,
 )
 
 fun renungTypography(families: RenungFontFamilies): RenungTypography {
@@ -124,6 +130,12 @@ fun renungTypography(families: RenungFontFamilies): RenungTypography {
             fontFamily = ui,
             fontSize = 15.sp,
             lineHeight = 20.sp,
+            fontWeight = FontWeight.Medium,
+        ),
+        quoteRow = TextStyle(
+            fontFamily = display,
+            fontSize = 17.sp,
+            lineHeight = 24.sp,
             fontWeight = FontWeight.Medium,
         ),
     )

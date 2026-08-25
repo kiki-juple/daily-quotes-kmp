@@ -1,29 +1,15 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import java.util.Properties
 
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
 }
 
-val favqsApiKeyForRelease = run {
-    val localProps = rootProject.file("local.properties").takeIf { it.exists() }?.let { file ->
-        Properties().apply { file.inputStream().use { load(it) } }
-    }
-    localProps?.getProperty("favqs.api.key")
-        ?: System.getenv("FAVQS_API_KEY")
-        ?: ""
-}
+// :composeApp has to be evaluated first for its task to be resolvable here; without this the
+// lookup below runs before that project exists and fails at configuration time.
+evaluationDependsOn(":composeApp")
 
-val requestedReleaseBuild = gradle.startParameter.taskNames.any { taskName ->
-    taskName.contains("Release", ignoreCase = true) &&
-            (taskName.contains("androidApp") || ":" !in taskName)
-}
-if (requestedReleaseBuild) {
-    check(favqsApiKeyForRelease.isNotBlank()) {
-        "Missing FavQs API key. Add favqs.api.key to local.properties or set FAVQS_API_KEY before building a release."
-    }
-}
+val composeResourcesForApp = project(":composeApp").tasks.named<Sync>("packageComposeResourcesForApp")
 
 android {
     namespace = "com.disheveled.dailyquotes"
@@ -60,9 +46,10 @@ android {
     }
 
     // :composeApp ships its Compose resources as Android assets, but the KMP library plugin does
-    // not export them to consumers. Pull them in from the directory produced by
-    // :composeApp:packageComposeResourcesForApp (wired below) so they land in the APK's assets.
-    sourceSets["main"].assets.srcDir(rootDir.resolve("composeApp/build/composeResourcesForApp"))
+    // not export them to consumers. Register the producing task itself as the asset source so
+    // Gradle derives the dependency for every consumer. Pointing at the raw directory instead used
+    // to leave lint's own tasks reading it with no declared dependency, which failed the build.
+    sourceSets["main"].assets.srcDir(composeResourcesForApp)
 }
 
 kotlin {
@@ -71,18 +58,12 @@ kotlin {
     }
 }
 
-// Ensure the Compose resource assets are packaged by :composeApp before this app merges assets.
-tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach {
-    dependsOn(":composeApp:packageComposeResourcesForApp")
-}
-
 dependencies {
     implementation(projects.composeApp)
     implementation(libs.androidx.activity.compose)
     implementation(libs.compose.runtime)
     implementation(libs.compose.ui)
     implementation(libs.compose.uiToolingPreview)
-    implementation(libs.errorprone.annotations)
     implementation(libs.koin.android)
 
     debugImplementation(libs.compose.uiTooling)

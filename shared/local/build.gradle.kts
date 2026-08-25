@@ -23,8 +23,6 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(libs.kotlin.stdlib)
-
             api(libs.sqldelight.runtime)
             api(libs.sqldelight.coroutines)
 

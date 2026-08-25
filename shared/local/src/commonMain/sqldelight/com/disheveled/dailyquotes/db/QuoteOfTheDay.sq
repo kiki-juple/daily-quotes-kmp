@@ -15,3 +15,6 @@ VALUES (?, ?, ?, ?, ?);
 
 deleteOlderThan:
 DELETE FROM QuoteOfTheDay WHERE qotdDate != :date;
+
+deleteAll:
+DELETE FROM QuoteOfTheDay;

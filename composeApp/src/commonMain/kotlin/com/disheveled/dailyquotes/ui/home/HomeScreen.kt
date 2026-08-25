@@ -42,7 +42,6 @@ import com.disheveled.dailyquotes.ui.platform.quoteShareText
 import com.disheveled.dailyquotes.ui.platform.rememberShareText
 import com.disheveled.dailyquotes.ui.theme.RenungColors
 import com.disheveled.dailyquotes.ui.theme.RenungTheme
-import com.disheveled.dailyquotes.ui.util.todayInIndonesian
 import dailyquotes.composeapp.generated.resources.Res
 import dailyquotes.composeapp.generated.resources.calendar
 import dailyquotes.composeapp.generated.resources.sparkle
@@ -80,23 +79,23 @@ fun HomeScreen(
             .fillMaxSize()
             .background(RenungColors.Paper),
     ) {
-        when {
-            state.isLoading && state.quote == null -> {
+        when (val content = state.content) {
+            HomeContent.Loading -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = RenungColors.Clay)
                 }
             }
 
-            state.errorMessage != null && state.quote == null -> {
+            is HomeContent.Error -> {
                 ErrorBlock(
-                    message = state.errorMessage!!,
+                    message = content.message,
                     onRetry = viewModel::refresh,
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
 
-            state.quote != null -> {
-                val quote = state.quote!!
+            is HomeContent.Loaded -> {
+                val quote = content.quote
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -112,7 +111,7 @@ fun HomeScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = remember { todayInIndonesian() },
+                                text = state.today,
                                 style = RenungTheme.typography.caption.copy(color = RenungColors.Ink3),
                             )
                             Spacer(Modifier.height(2.dp))
@@ -135,7 +134,7 @@ fun HomeScreen(
                         eyebrow = "Kutipan hari ini",
                         quote = "“${quote.body.trim()}”",
                         author = quote.author,
-                        saved = state.isFavorite,
+                        saved = content.isFavorite,
                         onToggleSave = {
                             viewModel.toggleFavorite()
                         },

@@ -9,6 +9,7 @@ import com.disheveled.dailyquotes.data.api.dto.QuoteDto
 import com.disheveled.dailyquotes.db.DailyQuotesDatabase
 import com.disheveled.dailyquotes.db.FavoriteQuote
 import com.disheveled.dailyquotes.domain.model.Quote
+import com.disheveled.dailyquotes.domain.model.SavedQuote
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -17,7 +18,7 @@ import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
 interface FavoritesRepository {
-    fun observeFavorites(): Flow<List<Quote>>
+    fun observeFavorites(): Flow<List<SavedQuote>>
     fun observeIsFavorite(quoteId: Long): Flow<Boolean>
     suspend fun refreshFavorites()
     suspend fun add(quote: Quote)
@@ -31,11 +32,11 @@ class DefaultFavoritesRepository(
     private val sessionStore: SessionStore,
 ) : FavoritesRepository {
 
-    override fun observeFavorites(): Flow<List<Quote>> =
+    override fun observeFavorites(): Flow<List<SavedQuote>> =
         database.favoriteQuoteQueries.selectAll()
             .asFlow()
             .mapToList(Dispatchers.Default)
-            .map { rows -> rows.map { it.toQuote() } }
+            .map { rows -> rows.map { it.toSavedQuote() } }
 
     override fun observeIsFavorite(quoteId: Long): Flow<Boolean> =
         database.favoriteQuoteQueries.countById(quoteId)
@@ -50,7 +51,11 @@ class DefaultFavoritesRepository(
         do {
             val response = api.getFavoriteQuotes(login = login, page = page)
             favorites += response.quotes
-            val hasNextPage = !response.lastPage && response.quotes.isNotEmpty()
+            // A server that never sets last_page would otherwise spin here forever, accumulating
+            // every page in memory. Stop at the cap and keep what we have.
+            val hasNextPage = !response.lastPage &&
+                    response.quotes.isNotEmpty() &&
+                    page < MAX_FAVORITE_PAGES
             page += 1
         } while (hasNextPage)
 
@@ -85,10 +90,17 @@ class DefaultFavoritesRepository(
         database.favoriteQuoteQueries.deleteById(quoteId)
     }
 
-    private fun FavoriteQuote.toQuote(): Quote = Quote(
-        id = id,
-        body = body,
-        author = author,
-        favoritesCount = favoritesCount.toInt(),
+    private companion object {
+        const val MAX_FAVORITE_PAGES = 20
+    }
+
+    private fun FavoriteQuote.toSavedQuote(): SavedQuote = SavedQuote(
+        quote = Quote(
+            id = id,
+            body = body,
+            author = author,
+            favoritesCount = favoritesCount.toInt(),
+        ),
+        savedAtEpochMs = savedAtEpochMs,
     )
 }

@@ -29,13 +29,10 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 
-class FavQsApi(private val client: HttpClient) {
-
-    private val json = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-        explicitNulls = false
-    }
+class FavQsApi(
+    private val client: HttpClient,
+    private val json: Json = FavQsConfig.json,
+) {
 
     suspend fun getQuoteOfTheDay(): QuoteOfTheDayDto = call {
         val response = client.get { url { path(FavQsConfig.BASE_PATH, "qotd") } }
@@ -120,20 +117,16 @@ class FavQsApi(private val client: HttpClient) {
         if (!response.status.value.isSuccess()) {
             throw apiErrorOf(raw, response.status)
         }
-        runCatching { json.decodeFromString<JsonObject>(raw) }
+        // FavQs answers some failures with HTTP 200 and an `error_code` in the body, so a successful
+        // status is not enough. Only `error_code` is treated as the marker: the previous version also
+        // guessed from a bare `message` field plus a whitelist of "known good" keys, which misread
+        // any legitimate payload that happened to carry a message alongside unlisted keys.
+        val hasErrorCode = runCatching { json.decodeFromString<JsonObject>(raw) }
             .getOrNull()
-            ?.let { root ->
-                val looksLikeError = root.containsKey("error_code") ||
-                        (root.containsKey("message") &&
-                                !root.containsKey("login") &&
-                                !root.containsKey("Login") &&
-                                !root.containsKey("User-Token") &&
-                                !root.containsKey("quote") &&
-                                !root.containsKey("qotd_date"))
-                if (looksLikeError) {
-                    throw apiErrorOf(raw, response.status)
-                }
-            }
+            ?.containsKey("error_code") == true
+        if (hasErrorCode) {
+            throw apiErrorOf(raw, response.status)
+        }
         return try {
             json.decodeFromString<T>(raw)
         } catch (e: SerializationException) {

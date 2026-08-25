@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import com.disheveled.dailyquotes.ui.theme.RenungColors
 import com.disheveled.dailyquotes.ui.theme.RenungTheme
@@ -42,8 +43,7 @@ fun FavoriteRow(
     quote: String,
     author: String,
     date: String,
-    onDelete: () -> Unit,
-    onUnsave: () -> Unit,
+    onRemove: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -64,7 +64,7 @@ fun FavoriteRow(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = onDelete,
+                    onClick = onRemove,
                 ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
@@ -83,10 +83,7 @@ fun FavoriteRow(
                     text = "Hapus",
                     style = RenungTheme.typography.button.copy(
                         color = RenungColors.Cream,
-                        fontSize = androidx.compose.ui.unit.TextUnit(
-                            13f,
-                            androidx.compose.ui.unit.TextUnitType.Sp
-                        )
+                        fontSize = 13.sp,
                     ),
                 )
             }
@@ -109,19 +106,7 @@ fun FavoriteRow(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = quote,
-                        style = RenungTheme.typography.h3.copy(
-                            color = RenungColors.Ink,
-                            fontSize = androidx.compose.ui.unit.TextUnit(
-                                17f,
-                                androidx.compose.ui.unit.TextUnitType.Sp
-                            ),
-                            lineHeight = androidx.compose.ui.unit.TextUnit(
-                                24f,
-                                androidx.compose.ui.unit.TextUnitType.Sp
-                            ),
-                            fontFamily = RenungTheme.typography.display.fontFamily,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                        ),
+                        style = RenungTheme.typography.quoteRow.copy(color = RenungColors.Ink),
                     )
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -145,7 +130,7 @@ fun FavoriteRow(
                 Spacer(Modifier.width(16.dp))
                 HeartToggle(
                     saved = true,
-                    onToggle = { onUnsave() },
+                    onToggle = { onRemove() },
                     size = HeartSize.Small,
                 )
             }

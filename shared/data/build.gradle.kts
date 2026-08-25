@@ -17,13 +17,13 @@ kotlin {
         }
     }
 
-    iosArm64()
-    iosSimulatorArm64()
+    // The iOS test executables link sqliter's cinterop, which needs the system SQLite — the same
+    // reason :composeApp passes -lsqlite3 to its framework.
+    iosArm64 { binaries.all { linkerOpts("-lsqlite3") } }
+    iosSimulatorArm64 { binaries.all { linkerOpts("-lsqlite3") } }
 
     sourceSets {
         commonMain.dependencies {
-            implementation(libs.kotlin.stdlib)
-
             api(projects.shared.network)
             api(projects.shared.local)
 
@@ -40,6 +40,16 @@ kotlin {
             implementation(libs.ktor.client.contentNegotiation)
             implementation(libs.ktor.serialization.json)
             implementation(libs.multiplatform.settings.test)
+        }
+
+        // Repository tests run against a real (in-memory) SQLDelight database, so each test target
+        // supplies the driver its platform can actually open.
+        getByName("androidHostTest").dependencies {
+            implementation(libs.sqldelight.driver.sqlite)
+        }
+
+        iosTest.dependencies {
+            implementation(libs.sqldelight.driver.native)
         }
     }
 }

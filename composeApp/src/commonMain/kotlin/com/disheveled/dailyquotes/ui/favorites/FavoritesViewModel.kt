@@ -3,7 +3,8 @@ package com.disheveled.dailyquotes.ui.favorites
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.disheveled.dailyquotes.data.repository.FavoritesRepository
-import com.disheveled.dailyquotes.domain.model.Quote
+import com.disheveled.dailyquotes.data.util.resultOf
+import com.disheveled.dailyquotes.domain.model.SavedQuote
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,7 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class FavoritesUiState(
-    val quotes: List<Quote> = emptyList(),
+    val quotes: List<SavedQuote> = emptyList(),
     val isLoading: Boolean = true,
     val actionMessage: String? = null,
 )
@@ -30,9 +31,7 @@ class FavoritesViewModel(
             }
         }
         viewModelScope.launch {
-            try {
-                favoritesRepository.refreshFavorites()
-            } catch (e: Exception) {
+            resultOf { favoritesRepository.refreshFavorites() }.onFailure { e ->
                 _state.update {
                     it.copy(
                         isLoading = false,
@@ -45,14 +44,11 @@ class FavoritesViewModel(
 
     fun remove(quoteId: Long) {
         viewModelScope.launch {
-            try {
-                favoritesRepository.remove(quoteId)
-                _state.update { it.copy(actionMessage = "Dihapus dari favorit") }
-            } catch (e: Exception) {
-                _state.update {
-                    it.copy(actionMessage = e.message ?: "Gagal menghapus favorit")
-                }
-            }
+            val message = resultOf { favoritesRepository.remove(quoteId) }.fold(
+                onSuccess = { "Dihapus dari favorit" },
+                onFailure = { e -> e.message ?: "Gagal menghapus favorit" },
+            )
+            _state.update { it.copy(actionMessage = message) }
         }
     }
 

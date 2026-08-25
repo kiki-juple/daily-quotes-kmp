@@ -6,6 +6,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 
 private val RenungLightColors = lightColorScheme(
@@ -35,28 +36,28 @@ val LocalRenungTypography: ProvidableCompositionLocal<RenungTypography> =
     staticCompositionLocalOf { error("RenungTypography not provided") }
 
 @Composable
-fun DailyQuotesTheme(
-    darkTheme: Boolean = false,
-    content: @Composable () -> Unit,
-) {
-    val families = rememberRenungFontFamilies()
-    val typo = renungTypography(families)
+fun DailyQuotesTheme(content: @Composable () -> Unit) {
+    val families = renungFontFamilies()
+    // Building the eleven text styles (and the Material mapping) is the part worth caching.
+    val typo = remember(families) { renungTypography(families) }
 
-    val materialTypography = Typography(
-        displayLarge = typo.display,
-        headlineLarge = typo.h1,
-        headlineMedium = typo.h1,
-        headlineSmall = typo.h2,
-        titleLarge = typo.h2,
-        titleMedium = typo.h3,
-        titleSmall = typo.label,
-        bodyLarge = typo.body,
-        bodyMedium = typo.body,
-        bodySmall = typo.bodySmall,
-        labelLarge = typo.button,
-        labelMedium = typo.label,
-        labelSmall = typo.caption,
-    )
+    val materialTypography = remember(typo) {
+        Typography(
+            displayLarge = typo.display,
+            headlineLarge = typo.h1,
+            headlineMedium = typo.h1,
+            headlineSmall = typo.h2,
+            titleLarge = typo.h2,
+            titleMedium = typo.h3,
+            titleSmall = typo.label,
+            bodyLarge = typo.body,
+            bodyMedium = typo.body,
+            bodySmall = typo.bodySmall,
+            labelLarge = typo.button,
+            labelMedium = typo.label,
+            labelSmall = typo.caption,
+        )
+    }
 
     CompositionLocalProvider(LocalRenungTypography provides typo) {
         MaterialTheme(
